@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HealthAI Application</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <!-- ✅ Include Chart.js library -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="background-image"></div>
+  <div class="background-overlay"></div>
+
+  <!-- Top Navbar -->
+
+<div class="navbar">
+  <h1 style="font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;font-size: 30px;">   HealthAI : Intelligent Healthcare Assistant Using IBM Granite</h1>
+</div>
+
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <a href="#" data-target="homePanel">🏠 Home</a>
+    <a href="#" data-target="chatPanel">💬 Patient Chat Assistant</a>
+    <a href="#" data-target="predictPanel">🩺 Disease Identifier</a>
+    <a href="#" data-target="remedyPanel">🌿 Home Remedies</a>
+    <a href="#" data-target="treatmentPanel">📝 Treatment Plan &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Generator</a>
+     <a href="#" data-target="dashboardPanel">📊 Health Dashboard</a>
+    <a href="#" data-target="tipsPanel">💡 Health Tips</a>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+
+    <!-- Home Section -->
+    <div id="homePanel" class="panel" style="display: block;">
+      <div class="card">
+        <h1>Welcome to HealthAI</h1>
+        <p><b>
+          HealthAI is your personal healthcare assistant powered by IBM WatsonX.
+          This app can predict diseases based on symptoms, suggest natural remedies,
+          and provide daily health tips. It also includes a conversational assistant
+          to help answer general health-related queries using powerful AI models.
+     </b>   </p>
+      </div>
+    </div>
+
+    <!-- Patient Chat Section -->
+    <div id="chatPanel" class="panel">
+  <div class="chat-card">
+    <h3>💬 Patient Chat Assistant</h3>
+    <div id="chatWindow" class="chat-window"></div>
+
+    <div class="chat-input">
+      <textarea id="chatInput" placeholder="Ask your health question..."></textarea>
+      <button onclick="sendChat()">Send</button>
+    </div>
+  </div>
+</div>
+
+
+
+    <!-- Symptoms Predictor Section -->
+    <div id="predictPanel" class="panel">
+      <div class="card">
+        <h3>🩺 Disease Identifier</h3>
+        <textarea id="symptomInput" placeholder="Enter your symptoms..."></textarea>
+        <button onclick="submitForm('/predict', 'symptomInput', 'predictResult')">Get Result</button>
+        <div id="predictResult" class="result"></div>
+      </div>
+    </div>
+
+    <!-- Remedies Section -->
+    <div id="remedyPanel" class="panel">
+      <div class="card">
+        <h3>🌿Home Remedies</h3>
+        <textarea id="remedyInput" placeholder="Enter symptoms or disease..."></textarea>
+        <button onclick="submitForm('/remedies', 'remedyInput', 'remedyResult')">Get Remedies</button>
+        <div id="remedyResult" class="result"></div>
+      </div>
+    </div>
+   <!-- Treatment Plan -->
+<!-- Treatment Plan -->
+    <div id="treatmentPanel" class="panel" style="display: none;">
+      <div class="card-container">
+        <div class="treatment-card">
+          <h3>📝 Treatment Plan Generator</h3>
+          <input type="number" id="ageInput" placeholder="Age">
+          <input type="text" id="genderInput" placeholder="Gender (e.g., Male/Female)">
+          <input type="text" id="conditionInput" placeholder="Condition (e.g., stomach pain)">
+          <input type="text" id="medicationsInput" placeholder="Current Medications (optional)">
+          <button onclick="getTreatmentPlan()">Get Plan</button>
+        </div>
+        <div id="treatmentResults" class="popup-card"></div>
+      </div>
+    </div>
+<!-- Dashboard Panel -->
+<div id="dashboardPanel" class="panel">
+  <div class="card scrollable-dashboard">
+    <h3>📊 Health Dashboard</h3>
+    <p>Enter your 7-day data (comma-separated):</p>
+
+    <label>Heart Rate</label>
+    <textarea id="heartRateInput" placeholder="e.g. 72, 75, 78, 80, 77, 74, 76"></textarea>
+
+    <label>Blood Pressure (Systolic)</label>
+    <textarea id="bpInput" placeholder="e.g. 120, 125, 130, 128, 124, 122, 126"></textarea>
+
+    <label>Blood Glucose</label>
+    <textarea id="glucoseInput" placeholder="e.g. 95, 100, 105, 110, 108, 102, 106"></textarea>
+
+    <button onclick="getInsights()">Generate AI Insights + Chart</button>
+
+    <div id="insightsResult" class="result" style="white-space: pre-wrap; margin-top: 20px;"></div>
+
+    <!-- Chart Container with Scroll if Needed -->
+    <div style="overflow-x: auto; overflow-y: auto; max-height: 400px; margin-top: 20px;">
+      <canvas id="healthChart" width="1200" height="600" style="background: white; border-radius: 8px;"></canvas>
+    </div>
+  </div>
+</div>
+
+
+  <!-- JavaScript -->
+  <script>
+    // Panel switching
+    document.querySelectorAll('.sidebar a').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const target = link.getAttribute('data-target');
+        if (!target) return;
+        document.querySelectorAll('.panel').forEach(panel => panel.style.display = 'none');
+        document.getElementById(target).style.display = 'block';
+      });
+    });
+
+    // Generic form submission
+    async function submitForm(url, inputId, outputId) {
+      const input = document.getElementById(inputId).value;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `user_input=${encodeURIComponent(input)}`
+      });
+      const data = await res.json();
+      document.getElementById(outputId).innerText = data.result || "❌ No response";
+    }
+
+    // Chatbot logic
+    async function sendChat() {
+      const input = document.getElementById("chatInput").value.trim();
+      if (!input) return;
+
+      const chatWindow = document.getElementById("chatWindow");
+
+      const userBubble = document.createElement("div");
+      userBubble.className = "chat-bubble user-bubble";
+      userBubble.innerText = input;
+      chatWindow.appendChild(userBubble);
+
+      document.getElementById("chatInput").value = "";
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: `user_input=${encodeURIComponent(input)}`
+        });
+
+        const data = await res.json();
+
+        const botBubble = document.createElement("div");
+        botBubble.className = "chat-bubble bot-bubble";
+        botBubble.innerText = data.result || "❌ No response received.";
+        chatWindow.appendChild(botBubble);
+      } catch (error) {
+        console.error("Chat error:", error);
+        const errorBubble = document.createElement("div");
+        errorBubble.className = "chat-bubble bot-bubble";
+        errorBubble.innerText = "⚠️ Error communicating with server.";
+        chatWindow.appendChild(errorBubble);
+      }
+
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    // Health tips
+    async function getTips() {
+      const res = await fetch('/tips');
+      const data = await res.json();
+      const container = document.getElementById("tipsResult");
+      container.innerHTML = "";
+      const lines = data.result.split(/\n|•|👉|-/).filter(l => l.trim());
+      lines.forEach(line => {
+        const tip = document.createElement("div");
+        tip.className = "tip-card";
+        tip.innerText = line.trim();
+        container.appendChild(tip);
+      });
+    }
+
+    // AI Insights for dashboard
+  let chartInstance;
+
+async function getInsights() {
+  const heart = document.getElementById("heartRateInput").value.trim();
+  const bp = document.getElementById("bpInput").value.trim();
+  const sugar = document.getElementById("glucoseInput").value.trim();
+
+  if (!heart || !bp || !sugar) {
+    alert("Please fill in all fields.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("heart_rate", heart);
+  formData.append("blood_pressure", bp);
+  formData.append("glucose", sugar);
+
+  const res = await fetch("/ai-insights", {
+    method: "POST",
+    body: formData
+  });
+
+  const data = await res.json();
+  document.getElementById("insightsResult").innerText = data.result || "⚠️ No insights returned.";
+
+  // Draw Chart
+  const labels = ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"];
+  const heartData = heart.split(",").map(Number);
+  const bpData = bp.split(",").map(Number);
+  const sugarData = sugar.split(",").map(Number);
+
+  const ctx = document.getElementById("healthChart").getContext("2d");
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Heart Rate',
+          data: heartData,
+          borderColor: '#ff6384',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          fill: true
+        },
+        {
+          label: 'Blood Pressure',
+          data: bpData,
+          borderColor: '#36a2eb',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          fill: true
+        },
+        {
+          label: 'Blood Glucose',
+          data: sugarData,
+          borderColor: '#ffce56',
+          backgroundColor: 'rgba(255, 206, 86, 0.2)',
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        title: {
+          display: true,
+          text: 'Health Trends Over 7 Days'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: false
+        }
+      }
+    }
+  });
+}
+
+
+  </script>
+
+
+
+    <!-- Health Tips Section -->
+    <div id="tipsPanel" class="panel">
+      <div class="card tips-card">
+        <h3>🌞 Health Tips Generator </h3>
+        <button onclick="getTips()" class="tips-btn">Get Health Tips</button>
+      </div>
+      <div id="tipsResult" class="tips-result"></div>
+    </div>
+
+  </div>
+
+  <!-- Script -->
+  <script src="/static/js/app.js"></script>
+  <script>
+    // Sidebar Navigation Logic
+    document.querySelectorAll('.sidebar a').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const target = link.getAttribute('data-target');
+        document.querySelectorAll('.panel').forEach(panel => panel.style.display = 'none');
+        document.getElementById(target).style.display = 'block';
+      });
+    });
+  async function getTreatmentPlan() {
+      const age = document.getElementById("ageInput").value.trim();
+      const gender = document.getElementById("genderInput").value.trim();
+      const condition = document.getElementById("conditionInput").value.trim();
+      const medications = document.getElementById("medicationsInput").value.trim();
+
+      if (!age || !gender || !condition) {
+        alert("Please enter age, gender, and condition.");
+        return;
+      }
+
+      const user_input = `Age: ${age}, Gender: ${gender}, Condition: ${condition}, Medications: ${medications || "None"}`;
+
+      try {
+        const res = await fetch("/treatment", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `user_input=${encodeURIComponent(user_input)}`
+        });
+
+        const data = await res.json();
+        const result = data.plan || "⚠️ No plan generated.";
+        document.getElementById("treatmentResults").innerHTML = `
+          <h4>📋 Treatment Plan</h4>
+          <div class="plan-content">${result.replace(/\n/g, "<br>")}</div>
+        `;
+      } catch (err) {
+        console.error("Treatment plan error:", err);
+        document.getElementById("treatmentResults").innerText = "⚠️ Failed to get treatment plan.";
+      }
+    }
+    </script>
+</body>
+</html>
